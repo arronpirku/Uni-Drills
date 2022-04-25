@@ -1,15 +1,23 @@
 
-#include "../../std_lib_facilities.h"
+#include "../../std_lib_facilities.h" //Include usual header
 
+// Some symbolic constants for clarity
 constexpr char number = '8';
 constexpr char quit = 'q';
 constexpr char print = ';';
 constexpr char name = 'a';
 constexpr char let = 'L';
-const string declkey = "let";
+constexpr char result = '=';
+const string declkey = "let"; //constexpr string since C++20 only
 
+//function declarations
 double expression();
+double primary();
+double term();
+double declaration();
+double statement();
 
+// Variable ///////////////////////
 class Variable {
 public:
 	string name;
@@ -18,34 +26,41 @@ public:
 
 vector<Variable> var_table;
 
-bool is_declared(string var){
+bool is_declared(string var)
+{
 	for (const auto& v : var_table)
 		if (v.name == var) return true;
 	return false;
 }
 
-double define_name (string var, double val){
+double define_name (string var, double val)
+{
 	if (is_declared(var)) error(var, " declared twice");
 	var_table.push_back(Variable{var,val});
 	return val;
 }
 
-double get_value(string s){
+double get_value(string s)
+{
 	for(const auto& v : var_table)
 		if (v.name == s) return v.value;
 	error("get: undefined variable", s);
+	return -1;
 }
 
-void set_value(string s, double d){
+void set_value(string s, double d)
+{
 	for (auto& v : var_table)
 		if(v.name == s){
 			v.value = d;
 			return;
 		}
-		error("set: undefined variable", s);
+	error("set: undefined variable", s);
 }
+// Variable end ///////////////////////
 
-class Token{
+// Token ///////////////////////
+class Token {
 public:
 	char kind;
 	double value;
@@ -55,12 +70,14 @@ public:
 	Token(char ch, double val): kind(ch), value(val) {}
 	Token(char ch, string n): kind(ch), name(n) {}
 };
+// Token end ///////////////////////
 
+// Token_stream ///////////////////////
 class Token_stream {
 public:
 	Token_stream();
-	Token get();
 	void putback(Token t);
+	Token get();
 	void ignore(char c);
 private:
 	bool full;
@@ -69,15 +86,17 @@ private:
 
 Token_stream::Token_stream() :full(false), buffer(0) {}
 
-void Token_stream::putback(Token t){
+void Token_stream::putback(Token t)
+{
 	if (full) error("putback() into full buffer");
 	buffer = t;
 	full = true;
 }
 
-Token Token_stream::get(){
-
-	if (full){
+Token Token_stream::get()
+{
+	if (full)
+	{
 		full = false;
 		return buffer;
 	}
@@ -85,7 +104,8 @@ Token Token_stream::get(){
 	char ch;
 	cin >> ch;
 
-	switch (ch){
+	switch (ch)
+	{
 		case print:
 		case quit:
 		case '(':
@@ -108,10 +128,11 @@ Token Token_stream::get(){
     	}
     	default: 
     	{
-    		if (isalpha(ch)){
+    		if (isalpha(ch))
+    		{
     			string s;
     			s += ch;
-    			while (cin.get(ch) && (isalpha(ch) || isdigit(ch))) s+=ch;
+    			while (cin.get(ch) && (isalpha(ch) || isdigit(ch))) s += ch;
     			cin.putback(ch);
     			if (s == declkey) return Token{let};
     			else if (is_declared(s))
@@ -120,33 +141,78 @@ Token Token_stream::get(){
     		}
     		error("Bad token");
     	}
+    	return 0;
 	}
 }
 
-void Token_stream::ignore(char c){
-
-	if (full && c == buffer.kind){
+void Token_stream::ignore(char c)
+{
+	if (full && c == buffer.kind)
+	{
 		full = false;
 		return;
 	}
+
 	full = false;
 
 	char ch = 0;
 	while (cin>>ch)
 		if (ch==c) return;
 }
-
+// Token_stream end ///////////////////////
 Token_stream ts;
 
-double primary(){
+void clean_up_mess()
+{
+	ts.ignore(print);
+}
 
+// Logically separate calculate() from the usual "boiler plate" of main 
+void calculate()
+{
+	while (cin)
+	try {
+		Token t = ts.get();
+		while (t.kind == print) t = ts.get();
+		if (t.kind == quit) return;
+		ts.putback(t);
+		cout << result << statement() << endl;
+	}
+	catch (exception& e) {
+		cerr << e.what() << endl;
+		clean_up_mess();
+	}
+}
+
+int main() 
+try {
+
+	define_name("pi", 3.1415926535);
+	define_name("e", 2.7182818284);
+	
+	calculate();
+
+	return 0;
+
+} catch (exception& e){
+	cerr << e.what() << endl;
+	return 1;
+} catch (...) {
+	cerr << "exception\n";
+	return 2;
+}
+
+//Functions mapping grammar rules //////////////////////////
+double primary()
+{
 	Token t = ts.get();
-	switch (t.kind){
+	switch (t.kind)
+	{
 		case '(':
 		{
 			double d = expression();
 			t = ts.get();
-			if (t.kind != ')') error ("')' expected");
+			if (t.kind != ')') error("')' expected");
 			return d;
 		}
 		case number:
@@ -158,14 +224,17 @@ double primary(){
 		default:
 			error("primary expected");
 	}
+	return -1;
 }
 
-double term(){
-
+double term()
+{
 	double left = primary();
 	Token t = ts.get();
-	while(true){
-		switch (t.kind){
+	while(true)
+	{
+		switch (t.kind)
+		{
 			case '*':
 				left *= primary();
 				t = ts.get();
@@ -173,7 +242,7 @@ double term(){
 			case '/':
 			{
 				double d = primary();
-				if (d == 0) error ("divide by zero");
+				if (d == 0) error("divide by zero");
 				left /= d;
 				t = ts.get();
 				break;
@@ -181,11 +250,11 @@ double term(){
 			case '%':
 			{
 				double d = primary();
-				if (d == 0) error ("%: Zero oszto");
+				if (d == 0) error("%: divide by zero");
 				left = fmod (left, d);
 				t = ts.get();
 				break;
-				/*
+				/* //or you can use narrow cast check
 				int i1 = narrow_cast<int>(left);
 				int i2 = narrow_cast<int>(primary());
 				if (i2 == 0) error ("%: Zero oszto");
@@ -201,12 +270,14 @@ double term(){
 	}
 }
 
-double expression(){
-
+double expression()
+{
 	double left = term();
 	Token t = ts.get();
-	while (true){
-		switch(t.kind){
+	while (true)
+	{
+		switch(t.kind)
+		{
 			case '+':
 				left += term();
 				t = ts.get();
@@ -222,11 +293,8 @@ double expression(){
 	}
 }
 
-void clean_up_mess(){
-	ts.ignore(print);
-}
-
-double declaration(){
+double declaration()
+{
 	Token t = ts.get();
 	if (t.kind != name) error("name expected in declaration");
 	string var_name = t.name;
@@ -239,55 +307,15 @@ double declaration(){
 	return d;
 }
 
-double statement(){
+double statement()
+{
 	Token t = ts.get();
-	switch(t.kind){
+	switch(t.kind)
+	{
 		case let:
 			return declaration();
 		default:
 			ts.putback(t);
 			return expression();
 	}
-}
-
-void calculate(){
-	
-/*	double val = 0;
-	while (cin)
-		try {
-		Token t = ts.get();
-		while (t.kind == print) t = ts.get();
-		if (t.kind == quit) return;
-		ts.putback(t);
-		cout << "=" << statement() << endl;
-		*/
-	while (cin)
-	try {
-		Token t = ts.get();
-		while (t.kind == print) t = ts.get();
-		if (t.kind == quit) return;
-		ts.putback(t);
-		cout << "=" << statement() << endl;
-	}
-	catch (exception& e) {
-		cerr << e.what() << endl;
-		clean_up_mess();
-	}
-}
-
-int main() 
-
-try {
-
-	define_name("pi", 3.1415926535);
-	define_name("e", 2.7182818284);
-	calculate();
-
-	return 0;
-} catch (exception& e){
-	cerr << e.what() << endl;
-	return 1;
-} catch (...) {
-	cerr << "exception\n";
-	return 2;
 }
