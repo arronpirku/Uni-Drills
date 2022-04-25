@@ -3,10 +3,10 @@
 
 // Some symbolic constants for clarity
 constexpr char number = '8';
-constexpr char exit = 'q';
+constexpr char quit = 'exit';
 constexpr char print = ';';
 constexpr char name = 'a';
-constexpr char # = 'L';
+constexpr char let = '#';
 constexpr char result = '=';
 const string declkey = "let"; //constexpr string since C++20 only
 
@@ -107,7 +107,7 @@ Token Token_stream::get()
 	switch (ch)
 	{
 		case print:
-		case exit:
+		case quit:
 		case '(':
 		case ')':
 		case '+':
@@ -134,7 +134,7 @@ Token Token_stream::get()
     			s += ch;
     			while (cin.get(ch) && (isalpha(ch) || isdigit(ch))) s += ch;
     			cin.putback(ch);
-    			if (s == declkey) return Token{#};
+    			if (s == declkey) return Token{let};
     			else if (is_declared(s))
     				return Token(number, get_value(s));
     			return Token{name,s};
@@ -174,7 +174,7 @@ void calculate()
 	try {
 		Token t = ts.get();
 		while (t.kind == print) t = ts.get();
-		if (t.kind == exit) return;
+		if (t.kind == quit) return;
 		ts.putback(t);
 		cout << result << statement() << endl;
 	}
@@ -312,7 +312,7 @@ double statement()
 	Token t = ts.get();
 	switch(t.kind)
 	{
-		case #:
+		case let:
 			return declaration();
 		default:
 			ts.putback(t);
