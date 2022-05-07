@@ -22,6 +22,7 @@ void print_vector(ostream& os, vector <int>& v )
 }
 int main()
 { //1st
+	//int n = whatever we need it for the print array;
 	int* arr = new int[10] {1,2,3,4,5,6,7,8,9,10};
     //2nd
 	for (int i = 0;i < 10;i++)
